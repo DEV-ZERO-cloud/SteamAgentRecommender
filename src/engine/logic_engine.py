@@ -171,11 +171,10 @@ def is_recommendable(
       2. dislike_penalty < 0.45.
       3. price <= max_price (si max_price > 0).
     """
-    if not is_rpg(game_tags):
-        return False
+    # Solo filtra por dislike y precio
     if dislike_penalty(game_tags, disliked_tags) >= 0.45:
         return False
-    if price > max_price:
+    if max_price > 0 and price > max_price:
         return False
     return True
 

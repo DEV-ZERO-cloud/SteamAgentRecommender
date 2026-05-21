@@ -17,7 +17,7 @@ from engine.knowledge_engine import KnowledgeEngine
 from engine.semantic_engine import SemanticEngine, SemanticEngineConfig
 from engine.parameters_engine import ParametersEngine, ScoreFilters
 from engine.prolog_engine import PrologEngine, EnrichedScore
-from pipeline.prepare_data import PrepareData
+from scripts.prepare_data import PrepareData
 
 load_dotenv()
 

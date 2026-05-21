@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from models.game import Game
 from engine.parameters_engine import ScoreFilters
 from pipeline.pipeline_recommendation import PipelineRecommendation
+from scripts.profile_extractor import build_user_profile, SteamUserProfile
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -31,8 +32,9 @@ pipeline = PipelineRecommendation()
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 class SemmanticRequest(BaseModel):
-    query:str
+    query: str
     top_k: int
+
 
 class RecommendationRequest(BaseModel):
     query: str
@@ -49,6 +51,18 @@ class RecommendationRequest(BaseModel):
     MaxYear: int = 9999
     isRecommendations: bool = False
     MinRecommendations: float = 0.0
+
+
+class ProfileRequest(BaseModel):
+    username: str
+
+
+class ProfileResponse(BaseModel):
+    user_id: str
+    name: str
+    played_app_ids: list[int]
+    preferred_tags: list[str]
+    amount_playing: list[int]
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -76,6 +90,26 @@ def recommend(request: RecommendationRequest):
         max_price     = request.MaxPrice,
     )
     return {"query": request.query, "results": results}
+
+
+@app.post("/profile", response_model=ProfileResponse)
+def get_profile(request: ProfileRequest):
+    """
+    Extrae el perfil de un usuario de Steam dado su nombre, URL o SteamID64.
+    Devuelve sus juegos jugados, horas y tags preferidos.
+    """
+    try:
+        profile: SteamUserProfile = build_user_profile(request.username)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return ProfileResponse(
+        user_id        = profile.user_id,
+        name           = profile.name,
+        played_app_ids = profile.played_app_ids,
+        preferred_tags = profile.preferred_tags,
+        amount_playing = profile.amount_playing,
+    )
 
 
 @app.post("/semantic_engine/search")

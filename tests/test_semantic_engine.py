@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from unittest.mock import patch
 
 from engine.semantic_engine import SemanticEngine, SemanticEngineConfig
-from pipeline.prepare_data import PrepareData, PreparedData
+from scripts.prepare_data import PrepareData, PreparedData
 
 load_dotenv()
 CSV_PATH = os.getenv("CSV_PATH")

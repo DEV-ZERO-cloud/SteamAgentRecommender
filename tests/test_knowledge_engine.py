@@ -34,7 +34,7 @@ def test_game_fields(engine):
     assert isinstance(game.name, str) and game.name
     assert isinstance(game.tags, list)
     assert isinstance(game.price, float)
-    assert 0.0 <= game.positive_ratio <= 1.0
+    assert 0.0 <= game.recommendations_ratio <= 1.0
     assert 0.0 <= game.rating <= 10.0
 
 def test_release_year_parsed(engine):

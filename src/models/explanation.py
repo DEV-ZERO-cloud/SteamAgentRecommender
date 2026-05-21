@@ -33,7 +33,7 @@ def generate_explanation(
 
     # --- Rating ---
     if game.rating >= 9.0:
-        parts.append(f"Calificación excepcional: {game.rating:.1f}/10 ({game.positive_ratio*100:.0f}% positivas).")
+        parts.append(f"Calificación excepcional: {game.rating:.1f}/10 ({game.recommendations_ratio*100:.0f}% positivas).")
     elif game.rating >= 8.0:
         parts.append(f"Muy bien valorado: {game.rating:.1f}/10.")
     elif game.rating >= 7.0:

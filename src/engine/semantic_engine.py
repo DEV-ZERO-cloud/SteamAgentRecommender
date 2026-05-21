@@ -116,7 +116,7 @@ class SemanticEngine:
         for idx in ranked_indices:
             score = float(similarities[idx])
             if score < _min_score:
-                break  # ya están ordenados: si este falla, los siguientes también
+                continue  # salta este, pero sigue evaluando los demás
             game_id = int(self._df.iloc[idx][self.config.id_column])
             results.append((game_id, round(score, 6)))
 
@@ -156,7 +156,7 @@ def build_semantic_engine(
     Returns:
         SemanticEngine listo para llamar a .search().
     """
-    from prepare_data import PrepareData  # importación local: evita circular import
+    from scripts.prepare_data import PrepareData  # importación local: evita circular import
 
     resolved_path = csv_path or os.getenv("CSV_PATH")
     if not resolved_path:

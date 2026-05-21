@@ -74,7 +74,7 @@ def _row_to_game(row: pd.Series) -> Game:
     total    = int(positive + negative)
 
     # Positive ratio (usado en Paso 4: parameters.json)
-    positive_ratio = round(positive / total, 4) if total > 0 else 0.0
+    recommendations_ratio = round(positive / total, 4) if total > 0 else 0.0
 
     return Game(
         app_id                   = int(row["appid"]),
@@ -86,10 +86,9 @@ def _row_to_game(row: pd.Series) -> Game:
         positive_reviews         = positive,
         negative_reviews         = negative,
         total_reviews            = total,
-        recommendations_quantity = float(row.get("recommendations") or 0),
         # ── campos derivados ──────────────────────────────────────────
         rating                   = _calc_rating(positive, negative),
-        positive_ratio           = positive_ratio,
+        recommendations_ratio    = recommendations_ratio,
         release_year             = _parse_year(str(row.get("release_date") or "")),
         # ── sin datos en CSV ──────────────────────────────────────────
         platforms                = None,
@@ -251,7 +250,7 @@ if __name__ == "__main__":
     if game:
         print(f"  {game.name} | ${game.price} | {game.release_year} | rating={game.rating}")
         print(f"  tags[:5]       : {game.tags[:5]}")
-        print(f"  positive_ratio : {game.positive_ratio:.1%}")
+        print(f"  recommendations_ratio : {game.recommendations_ratio:.1%}")
 
     print("\n── Búsqueda semántica ──")
     results = ke.semantic_search("dark fantasy dungeon crawler", k=5)
