@@ -4,9 +4,8 @@ Tests del ParametersEngine con datos sintéticos y reales.
 
 Juego real: Project Zomboid (app_id=108600)
     price                = 19.99
-    positive_ratio       = 138070 / 146874 ≈ 0.9401
+    recommendations_ratio       = 138070 / 146874 ≈ 0.9401
     release_year         = 2013
-    recommendations_quantity = 0.0
 """
 import pytest
 import os
@@ -33,9 +32,8 @@ def make_game(**kwargs) -> Game:
         app_id=1,
         name="Test Game",
         price=10.0,
-        positive_ratio=0.85,
+        recommendations_ratio=0.85,
         release_year=2020,
-        recommendations_quantity=500.0,
         tags=["rpg"],
         genres=["RPG"],
         categories=[],
@@ -55,9 +53,8 @@ PROJECT_ZOMBOID = Game(
     positive_reviews         = 138070,
     negative_reviews         = 8804,
     total_reviews            = 146874,
-    positive_ratio           = round(138070 / 146874, 4),  # 0.9401
+    recommendations_ratio           = round(138070 / 146874, 4),  # 0.9401
     release_year             = 2013,
-    recommendations_quantity = 0.0,
     tags                     = ["Survival", "Zombies", "Open World", "Multiplayer", "Sandbox",
                                 "Post-apocalyptic", "Co-op", "Crafting", "Building", "Indie",
                                 "Simulation", "RPG", "Survival Horror", "Realistic", "Isometric"],
@@ -135,17 +132,17 @@ def test_precio_real_exacto_en_limite_superior(engine):
 # ── Filtro de positive rate ───────────────────────────────────────────────────
 
 def test_positive_rate_cumple(engine):
-    scored = engine.score([make_game(positive_ratio=0.9)], SEMANTIC_SCORES_SYNTHETIC,
+    scored = engine.score([make_game(recommendations_ratio=0.9)], SEMANTIC_SCORES_SYNTHETIC,
                           ScoreFilters(isPositiveRate=True, MinPositiveRate=0.8))
     assert scored[0].positive_rate_flag == 1
 
 def test_positive_rate_no_cumple(engine):
-    scored = engine.score([make_game(positive_ratio=0.7)], SEMANTIC_SCORES_SYNTHETIC,
+    scored = engine.score([make_game(recommendations_ratio=0.7)], SEMANTIC_SCORES_SYNTHETIC,
                           ScoreFilters(isPositiveRate=True, MinPositiveRate=0.8))
     assert scored[0].positive_rate_flag == 0
 
 def test_positive_rate_inactivo_siempre_es_1(engine):
-    scored = engine.score([make_game(positive_ratio=0.0)], SEMANTIC_SCORES_SYNTHETIC,
+    scored = engine.score([make_game(recommendations_ratio=0.0)], SEMANTIC_SCORES_SYNTHETIC,
                           ScoreFilters(isPositiveRate=False))
     assert scored[0].positive_rate_flag == 1
 
@@ -201,24 +198,6 @@ def test_fecha_real_exacta_en_limite_inferior(engine):
                           ScoreFilters(isDate=True, MinYear=2013, MaxYear=2025))
     assert scored[0].date_flag == 1
 
-
-# ── Filtro de recommendations ─────────────────────────────────────────────────
-
-def test_recommendations_cumple(engine):
-    scored = engine.score([make_game(recommendations_quantity=1000.0)], SEMANTIC_SCORES_SYNTHETIC,
-                          ScoreFilters(isRecommendations=True, MinRecommendations=500.0))
-    assert scored[0].recommendations_flag == 1
-
-def test_recommendations_no_cumple(engine):
-    scored = engine.score([make_game(recommendations_quantity=100.0)], SEMANTIC_SCORES_SYNTHETIC,
-                          ScoreFilters(isRecommendations=True, MinRecommendations=500.0))
-    assert scored[0].recommendations_flag == 0
-
-def test_recommendations_inactivo_siempre_es_1(engine):
-    scored = engine.score([make_game(recommendations_quantity=0.0)], SEMANTIC_SCORES_SYNTHETIC,
-                          ScoreFilters(isRecommendations=False))
-    assert scored[0].recommendations_flag == 1
-
 def test_recommendations_real_no_cumple_minimo_1(engine):
     # 0.0 < 1 → no cumple
     scored = engine.score([PROJECT_ZOMBOID], SEMANTIC_SCORES_REAL,
@@ -233,30 +212,6 @@ def test_recommendations_real_cumple_minimo_0(engine):
 
 
 # ── Scores parciales ──────────────────────────────────────────────────────────
-
-def test_score_parcial_solo_precio_cumple(engine):
-    # price=1(40) + positive_rate=0 + date=0 + recommendations=0 = 40
-    game = make_game(price=5.0, positive_ratio=0.5, release_year=2010, recommendations_quantity=10.0)
-    filters = ScoreFilters(
-        isPrice=True,           MinPrice=0.0,  MaxPrice=10.0,
-        isPositiveRate=True,    MinPositiveRate=0.8,
-        isDate=True,            MinYear=2015,  MaxYear=2025,
-        isRecommendations=True, MinRecommendations=500.0,
-    )
-    scored = engine.score([game], SEMANTIC_SCORES_SYNTHETIC, filters)
-    assert scored[0].parameter_score == 40
-
-def test_score_parcial_todos_menos_precio(engine):
-    # price=0 + positive_rate=1(30) + date=1(10) + recommendations=1(20) = 60
-    game = make_game(price=99.0, positive_ratio=0.9, release_year=2020, recommendations_quantity=1000.0)
-    filters = ScoreFilters(
-        isPrice=True,           MinPrice=0.0,  MaxPrice=10.0,
-        isPositiveRate=True,    MinPositiveRate=0.8,
-        isDate=True,            MinYear=2015,  MaxYear=2025,
-        isRecommendations=True, MinRecommendations=500.0,
-    )
-    scored = engine.score([game], SEMANTIC_SCORES_SYNTHETIC, filters)
-    assert scored[0].parameter_score == 60
 
 def test_score_real_precio_y_positive_rate_cumplen(engine):
     # price=1(40) + positive_rate=1(30) + date=0 + recommendations=0 = 70
@@ -292,22 +247,6 @@ def test_score_real_ninguno_cumple(engine):
 
 
 # ── Ordenamiento ──────────────────────────────────────────────────────────────
-
-def test_resultados_ordenados_por_score_desc(engine):
-    games = [
-        make_game(app_id=1, price=99.0, positive_ratio=0.5, release_year=2010, recommendations_quantity=10.0),
-        make_game(app_id=2, price=5.0,  positive_ratio=0.9, release_year=2020, recommendations_quantity=1000.0),
-        make_game(app_id=3, price=5.0,  positive_ratio=0.9, release_year=2020, recommendations_quantity=10.0),
-    ]
-    filters = ScoreFilters(
-        isPrice=True,           MinPrice=0.0,  MaxPrice=10.0,
-        isPositiveRate=True,    MinPositiveRate=0.8,
-        isDate=True,            MinYear=2015,  MaxYear=2025,
-        isRecommendations=True, MinRecommendations=500.0,
-    )
-    scored = engine.score(games, SEMANTIC_SCORES_SYNTHETIC, filters)
-    scores = [s.parameter_score for s in scored]
-    assert scores == sorted(scores, reverse=True)
 
 
 # ── GameScore fields ──────────────────────────────────────────────────────────

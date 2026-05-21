@@ -124,7 +124,7 @@ def test_pipeline_date_filter(pipeline):
 
 
 def test_pipeline_positive_rate_filter(pipeline):
-    """Juegos con positive_ratio bajo no deben aparecer con filtro activo."""
+    """Juegos con recommendations_ratio bajo no deben aparecer con filtro activo."""
     filters = ScoreFilters(
         isPositiveRate  = True,
         MinPositiveRate = 0.80,

@@ -13,3 +13,7 @@ torch
 transformers
 pytest
 dotenv
+tabulate
+Playwright
+requests
+beautifulsoup4
