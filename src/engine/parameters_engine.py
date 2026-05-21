@@ -137,7 +137,7 @@ class ParametersEngine:
     def _eval_positive_rate(self, game: Game, f: ScoreFilters) -> int:
         if not f.isPositiveRate:
             return 1
-        return 1 if game.recommendations_ratio >= f.MinPositiveRate else 0
+        return 1 if game.positive_ratio >= f.MinPositiveRate else 0
 
     def _eval_date(self, game: Game, f: ScoreFilters) -> int:
         if not f.isDate:
@@ -149,7 +149,7 @@ class ParametersEngine:
     def _eval_recommendations(self, game: Game, f: ScoreFilters) -> int:
         if not f.isRecommendations:
             return 1
-        return 1 if game.recommendations_ratio >= f.MinRecommendations else 0
+        return 1 if game.recommendations_quantity >= f.MinRecommendations else 0
 
     # ── Carga de pesos ────────────────────────────────────────────────────────
 

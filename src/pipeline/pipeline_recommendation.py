@@ -50,7 +50,7 @@ class PipelineRecommendation:
 
     def recommend(
         self,
-        query: str,
+        query: list[str],
         top_k: int = 5,
         filters: ScoreFilters | None = None,
         disliked_tags: str | None = None,

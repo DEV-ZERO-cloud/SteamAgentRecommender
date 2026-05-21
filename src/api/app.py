@@ -32,13 +32,13 @@ pipeline = PipelineRecommendation()
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 class SemmanticRequest(BaseModel):
-    query: str
+    query: list[str]
     top_k: int
 
 
 class RecommendationRequest(BaseModel):
-    query: str
-    disliked_tags: str
+    query: list[str]
+    disliked_tags: list[str] | None=None
     top_k: int = 5
     # Filtros ScoreFilters
     isPrice: bool = False

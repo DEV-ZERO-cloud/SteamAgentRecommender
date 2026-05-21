@@ -168,11 +168,12 @@ def is_recommendable(
     """
     True si el juego pasa todos los filtros de calidad:
       1. Es un RPG.
-      2. dislike_penalty < 0.45.
+      2. dislike_penalty < 0.30.
       3. price <= max_price (si max_price > 0).
     """
-    # Solo filtra por dislike y precio
-    if dislike_penalty(game_tags, disliked_tags) >= 0.45:
+    if not is_rpg(game_tags):
+        return False
+    if dislike_penalty(game_tags, disliked_tags) >= 0.30:
         return False
     if max_price > 0 and price > max_price:
         return False

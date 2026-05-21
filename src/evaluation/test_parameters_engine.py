@@ -27,6 +27,7 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
+from dotenv import load_dotenv
 
 import pandas as pd
 import numpy as np
@@ -40,13 +41,13 @@ from tabulate import tabulate
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s │ %(message)s")
 logger = logging.getLogger(__name__)
-
+load_dotenv()
 
 # =============================================================================
 # Configuración
 # =============================================================================
 
-CSV_PATH        = os.getenv("CSV_PATH",        "src/data/steam_rpg.csv")
+CSV_PATH        = os.getenv("CSV_PATH",        "src/data/steam_rpg_games.csv")
 PARAMETERS_PATH = os.getenv("PARAMETERS_PATH", "src/data/parameters.json")
 CSV_SEP         = "|"
 
