@@ -53,7 +53,7 @@ PROJECT_ZOMBOID = Game(
     positive_reviews         = 138070,
     negative_reviews         = 8804,
     total_reviews            = 146874,
-    recommendations_ratio           = round(138070 / 146874, 4),  # 0.9401
+    recommendations_ratio    = round(138070 / 146874, 4),  # 0.9401
     release_year             = 2013,
     tags                     = ["Survival", "Zombies", "Open World", "Multiplayer", "Sandbox",
                                 "Post-apocalyptic", "Co-op", "Crafting", "Building", "Indie",
