@@ -89,7 +89,13 @@ class PipelineRecommendation:
         games_by_id = {g.app_id: g for g in games}
 
         # Configurar preferencias del motor lógico para esta request
-        self.prolog_engine.disliked_tags = {t.strip() for t in disliked_tags.split(",")} if disliked_tags else set()
+        if disliked_tags:
+            if isinstance(disliked_tags, list):
+                self.prolog_engine.disliked_tags = {t.strip() for t in disliked_tags}
+            else:
+                self.prolog_engine.disliked_tags = {t.strip() for t in disliked_tags.split(",")}
+        else:
+            self.prolog_engine.disliked_tags = set()
         self.prolog_engine.max_price = max_price
 
         enriched = self.prolog_engine.filter(scored, games_by_id, query_tags)
