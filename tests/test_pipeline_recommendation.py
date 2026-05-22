@@ -152,8 +152,8 @@ def test_pipeline_all_filters_combined(pipeline):
         MinRecommendations = 500.0,
     )
     results = pipeline.recommend(
-        query         = "rpg, fantasy, magic, exploration",
-        disliked_tags = "horror, gore",
+        query         = ["rpg, fantasy, magic, exploration"],
+        disliked_tags = ["horror, gore"],
         top_k         = 5,
         filters       = filters,
         max_price     = 40.0,
