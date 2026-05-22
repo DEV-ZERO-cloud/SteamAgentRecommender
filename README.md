@@ -1,4 +1,4 @@
-# SteamAgentRecommendator
+# SteamAgentRecommender
 
 > Sistema inteligente de recomendación de videojuegos RPG dentro de la plataforma Steam
 
@@ -6,7 +6,7 @@
 
 ## Descripción
 
-**SteamAgentRecommendator** es un agente inteligente diseñado para recomendar videojuegos de tipo **RPG** dentro de la plataforma **Steam**, una de las mayores tiendas de distribución digital de videojuegos del mundo.
+**SteamAgentRecommender** es un agente inteligente diseñado para recomendar videojuegos de tipo **RPG** dentro de la plataforma **Steam**, una de las mayores tiendas de distribución digital de videojuegos del mundo.
 
 ---
 
