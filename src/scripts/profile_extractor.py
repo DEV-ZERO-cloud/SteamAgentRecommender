@@ -1,20 +1,21 @@
-# Batch Steam Profile Extractor → CSV
-from typing import List
-from collections import Counter
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from pydantic import BaseModel, Field
+# Batch Steam Profile Extractor → CSV  (optimized: full async I/O)
+from __future__ import annotations
 
+import asyncio
+import os
+import re
+import argparse
+from collections import Counter
+from typing import Optional
+from urllib.parse import quote
+
+import httpx
+import pandas as pd
+from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 from playwright._impl._errors import Error as PlaywrightError
 
-from dotenv import load_dotenv
-
-import pandas as pd
-import requests
-import argparse
-import os
-import re
-
+from models.user import User
 
 # =========================================================
 # CONFIG
@@ -31,232 +32,196 @@ HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 OUTPUT_PATH = "./src/data/steam_users.csv"
 
-# Max parallel workers for tag fetching and user processing
-TAG_WORKERS = 10
-USER_WORKERS = 5
+TAG_CONCURRENCY   = 15
+USER_WORKERS      = 5
+HTTP_TIMEOUT      = 15
 
 
 # =========================================================
-# MODEL
+# HTTP CLIENT
 # =========================================================
 
-class SteamUserProfile(BaseModel):
-
-    user_id: str
-    name: str = ""
-    played_app_ids: List[int] = Field(default_factory=list)
-    preferred_tags: List[str] = Field(default_factory=list)
-    amount_playing: List[int] = Field(default_factory=list)
+def _make_client() -> httpx.AsyncClient:
+    return httpx.AsyncClient(
+        headers=HEADERS,
+        timeout=HTTP_TIMEOUT,
+        limits=httpx.Limits(max_connections=60, max_keepalive_connections=30),
+    )
 
 
 # =========================================================
-# SEARCH PROFILE
+# STEAM ID RESOLUTION
 # =========================================================
 
-def search_steam_profile(username: str):
-
+def search_steam_profile(username: str) -> Optional[str]:
     with sync_playwright() as p:
-
         try:
             browser = p.chromium.launch(headless=True)
-
         except PlaywrightError:
             raise Exception(
                 "Playwright no tiene navegadores instalados. "
                 "Ejecuta: playwright install"
             )
-
         page = browser.new_page()
-        url = f"https://steamcommunity.com/search/users/#text={username}"
-        page.goto(url)
+        page.goto(f"https://steamcommunity.com/search/users/#text={username}")
         page.wait_for_timeout(5000)
         html = page.content()
         browser.close()
 
-        match = re.search(r"steamcommunity\.com/profiles/(\d+)", html)
-        if match:
-            return match.group(1)
-
-        match = re.search(r"steamcommunity\.com/id/([^\"/]+)", html)
-        if match:
-            return match.group(1)
-
-        return None
+    match = re.search(r"steamcommunity\.com/profiles/(\d+)", html)
+    if match:
+        return match.group(1)
+    match = re.search(r"steamcommunity\.com/id/([^\"/]+)", html)
+    if match:
+        return match.group(1)
+    return None
 
 
-# =========================================================
-# RESOLVE VANITY
-# =========================================================
-
-def resolve_vanity_url(vanity_name: str) -> str:
-
-    url = "https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/"
-    params = {"key": STEAM_API_KEY, "vanityurl": vanity_name}
-
-    response = requests.get(url, params=params, timeout=15)
-
-    if response.status_code != 200:
-        raise Exception(f"Steam API devolvió {response.status_code}")
-
-    data = response.json()
-
+async def resolve_vanity_url(vanity_name: str, client: httpx.AsyncClient) -> str:
+    resp = await client.get(
+        "https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/",
+        params={"key": STEAM_API_KEY, "vanityurl": vanity_name},
+    )
+    resp.raise_for_status()
+    data = resp.json()
     if data["response"]["success"] != 1:
         raise Exception(f"No se encontró vanity url: {vanity_name}")
-
     return data["response"]["steamid"]
 
 
-# =========================================================
-# EXTRACT STEAM ID
-# =========================================================
-
-def extract_steam_id(user_input: str) -> str:
-
+async def extract_steam_id(user_input: str, client: httpx.AsyncClient) -> str:
     if user_input.isdigit():
         return user_input
-
-    profile_match = re.search(
-        r"steamcommunity\.com/profiles/(\d+)", user_input
-    )
-    if profile_match:
-        return profile_match.group(1)
-
-    vanity_match = re.search(
-        r"steamcommunity\.com/id/([^/]+)", user_input
-    )
-    if vanity_match:
-        return resolve_vanity_url(vanity_match.group(1))
-
-    found_profile = search_steam_profile(user_input)
-
-    if not found_profile:
+    m = re.search(r"steamcommunity\.com/profiles/(\d+)", user_input)
+    if m:
+        return m.group(1)
+    m = re.search(r"steamcommunity\.com/id/([^/]+)", user_input)
+    if m:
+        return await resolve_vanity_url(m.group(1), client)
+    loop = asyncio.get_running_loop()
+    found = await loop.run_in_executor(None, search_steam_profile, user_input)
+    if not found:
         raise Exception(f"No se pudo encontrar el usuario: {user_input}")
-
-    if found_profile.isdigit():
-        return found_profile
-
-    return resolve_vanity_url(found_profile)
+    if found.isdigit():
+        return found
+    return await resolve_vanity_url(found, client)
 
 
 # =========================================================
-# PLAYER SUMMARY
+# STEAM API CALLS
 # =========================================================
 
-def get_player_summary(steam_id: str) -> dict:
-
-    url = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/"
-    params = {"key": STEAM_API_KEY, "steamids": steam_id}
-
-    response = requests.get(url, params=params)
-    data = response.json()
-    players = data["response"]["players"]
-
+async def get_player_summary(steam_id: str, client: httpx.AsyncClient) -> dict:
+    resp = await client.get(
+        "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/",
+        params={"key": STEAM_API_KEY, "steamids": steam_id},
+    )
+    resp.raise_for_status()
+    players = resp.json()["response"]["players"]
     if not players:
         raise Exception("Usuario no encontrado")
-
     return players[0]
 
 
-# =========================================================
-# OWNED GAMES
-# =========================================================
-
-def get_owned_games(steam_id: str) -> list:
-
-    url = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/"
-    params = {
-        "key": STEAM_API_KEY,
-        "steamid": steam_id,
-        "include_appinfo": True,
-        "include_played_free_games": True,
-    }
-
-    response = requests.get(url, params=params)
-    data = response.json()
-
-    return data.get("response", {}).get("games", [])
+async def get_owned_games(steam_id: str, client: httpx.AsyncClient) -> list:
+    resp = await client.get(
+        "https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/",
+        params={
+            "key": STEAM_API_KEY,
+            "steamid": steam_id,
+            "include_appinfo": True,
+            "include_played_free_games": True,
+        },
+    )
+    resp.raise_for_status()
+    return resp.json().get("response", {}).get("games", [])
 
 
-# =========================================================
-# GAME TAGS  (unchanged logic, used inside thread pool)
-# =========================================================
-
-def get_game_tags(app_id: int) -> list[str]:
-
-    url = f"https://store.steampowered.com/api/appdetails?appids={app_id}"
-
-    try:
-        response = requests.get(url, timeout=10)
-        data = response.json()
-        app_data = data[str(app_id)]
-
-        if not app_data["success"]:
+async def get_game_tags(
+    app_id: int,
+    client: httpx.AsyncClient,
+    sem: asyncio.Semaphore,
+) -> list[str]:
+    async with sem:
+        try:
+            resp = await client.get(
+                f"https://store.steampowered.com/api/appdetails?appids={app_id}",
+            )
+            data = resp.json()
+            app_data = data.get(str(app_id), {})
+            if not app_data.get("success"):
+                return []
+            return [g["description"] for g in app_data["data"].get("genres", [])]
+        except Exception:
             return []
 
-        genres = app_data["data"].get("genres", [])
-        return [genre["description"] for genre in genres]
-
-    except Exception:
-        return []
-
 
 # =========================================================
-# BUILD PROFILE  (parallelized tag fetching)
+# CORE PROFILE BUILDER
 # =========================================================
 
-def build_user_profile(user_input: str) -> SteamUserProfile:
+async def _build_user_profile_async(user_input: str) -> User:
+    async with _make_client() as client:
 
-    steam_id = extract_steam_id(user_input)
+        # 1. Resolve Steam ID
+        steam_id = await extract_steam_id(user_input, client)
 
-    # Fetch summary and games concurrently
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        future_summary = pool.submit(get_player_summary, steam_id)
-        future_games   = pool.submit(get_owned_games, steam_id)
-        summary = future_summary.result()
-        games   = future_games.result()
+        # 2. summary + games en paralelo (reviews se omiten aquí;
+        #    usa build_review_dataset() si las necesitas por separado)
+        summary, games = await asyncio.gather(
+            get_player_summary(steam_id, client),
+            get_owned_games(steam_id, client),
+        )
 
-    # Keep only games with playtime
-    played_games = [
-        (game["appid"], round(game.get("playtime_forever", 0) / 60))
-        for game in games
-        if round(game.get("playtime_forever", 0) / 60) > 0
-    ]
+        # 3. Filter to games with playtime
+        played_games = [
+            (game["appid"], round(game.get("playtime_forever", 0) / 60))
+            for game in games
+            if round(game.get("playtime_forever", 0) / 60) > 0
+        ]
+        played_app_ids = [g[0] for g in played_games]
+        amount_playing = [g[1] for g in played_games]
 
-    played_app_ids  = [g[0] for g in played_games]
-    amount_playing  = [g[1] for g in played_games]
+        # 4. Fetch tags for all played games in parallel
+        tag_sem   = asyncio.Semaphore(TAG_CONCURRENCY)
+        tag_lists = await asyncio.gather(
+            *[get_game_tags(app_id, client, tag_sem) for app_id in played_app_ids]
+        )
 
-    # Fetch tags for all played games in parallel
+    # Aggregate tags
     tag_counter: Counter = Counter()
-
-    with ThreadPoolExecutor(max_workers=TAG_WORKERS) as pool:
-        future_to_app = {
-            pool.submit(get_game_tags, app_id): app_id
-            for app_id in played_app_ids
-        }
-        for future in as_completed(future_to_app):
-            tags = future.result()
-            tag_counter.update(tags)
-
+    for tags in tag_lists:
+        tag_counter.update(tags)
     preferred_tags = [tag for tag, _ in tag_counter.most_common(10)]
 
-    return SteamUserProfile(
+    # Build review arrays (vacíos; usar build_review_dataset() para poblarlos)
+    reviewed_app_ids: list[int] = []
+    review_sentiment: list[int] = []
+
+    return User(
         user_id=steam_id,
         name=summary.get("personaname", ""),
         played_app_ids=played_app_ids,
         preferred_tags=preferred_tags,
         amount_playing=amount_playing,
+        reviewed_app_ids=reviewed_app_ids,
+        review_sentiment=review_sentiment,
     )
 
 
+def build_user_profile(user_input: str) -> User:
+    """Sync wrapper for CLI / batch compatibility."""
+    return asyncio.run(_build_user_profile_async(user_input))
+
+
 # =========================================================
-# PROCESS USERS  (parallelized across users)
+# BATCH PROCESSING
 # =========================================================
 
-def _process_single(username: str) -> dict | None:
-    """Worker function for a single username. Returns dict or None on error."""
+async def _process_single_async(username: str) -> dict | None:
     print(f"Procesando: {username}")
     try:
-        profile = build_user_profile(username)
+        profile = await _build_user_profile_async(username)
         print(f"OK -> {profile.name}")
         return {
             "user_id":        profile.user_id,
@@ -270,40 +235,56 @@ def _process_single(username: str) -> dict | None:
         return None
 
 
+async def _process_users_async(usernames: list[str]) -> list[dict]:
+    results = await asyncio.gather(*[_process_single_async(u) for u in usernames])
+    return [r for r in results if r is not None]
+
+
 def process_users(usernames: list[str]) -> list[dict]:
-
-    profiles: list[dict] = []
-
-    with ThreadPoolExecutor(max_workers=USER_WORKERS) as pool:
-        futures = {pool.submit(_process_single, u): u for u in usernames}
-        for future in as_completed(futures):
-            result = future.result()
-            if result is not None:
-                profiles.append(result)
-
-    return profiles
+    return asyncio.run(_process_users_async(usernames))
 
 
 # =========================================================
-# SAVE CSV
+# REVIEW DATASET HELPER
+# =========================================================
+
+async def _build_review_dataset_async(steam_id: str) -> list[dict]:
+    async with _make_client() as client:
+        reviews = await get_user_reviews_from_profile(steam_id, client)
+    return [
+        {"user_id": steam_id, "app_id": r["app_id"], "liked": int(r["voted_up"])}
+        for r in reviews
+    ]
+
+
+def build_review_dataset(steam_id: str) -> list[dict]:
+    return asyncio.run(_build_review_dataset_async(steam_id))
+
+
+# =========================================================
+# CSV EXPORT
 # =========================================================
 
 def save_profiles_csv(profiles: list[dict]):
-
     os.makedirs("src/data", exist_ok=True)
-
     df = pd.DataFrame(profiles)
-    df.to_csv(OUTPUT_PATH, index=False, sep="|")
-
+    str_cols = {"preferred_tags"}
+    int_cols = {"played_app_ids", "amount_playing"}
+    for col in str_cols | int_cols:
+        if col in df.columns:
+            if col in str_cols:
+                df[col] = df[col].apply(lambda x: "[" + ", ".join(f'"{v}"' for v in x) + "]")
+            else:
+                df[col] = df[col].apply(lambda x: "[" + ", ".join(str(v) for v in x) + "]")
+    df.to_csv(OUTPUT_PATH, index=False, sep="|", quoting=3)  # quoting=3 → QUOTE_NONE
     print(f"CSV guardado en: {OUTPUT_PATH}")
 
 
 # =========================================================
-# MAIN
+# CLI
 # =========================================================
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="Steam Batch Profile Extractor")
     parser.add_argument("users", nargs="+", help="Lista de usuarios Steam")
     args = parser.parse_args()

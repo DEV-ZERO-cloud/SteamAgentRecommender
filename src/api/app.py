@@ -9,9 +9,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from models.game import Game
+from models.user import User
 from engine.parameters_engine import ScoreFilters
 from pipeline.pipeline_recommendation import PipelineRecommendation
-from scripts.profile_extractor import build_user_profile, SteamUserProfile
+from scripts.profile_extractor import _build_user_profile_async
+
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -38,7 +40,7 @@ class SemmanticRequest(BaseModel):
 
 class RecommendationRequest(BaseModel):
     query: list[str]
-    disliked_tags: list[str] | None=None
+    disliked_tags: list[str] | None = None
     top_k: int = 5
     # Filtros ScoreFilters
     isPrice: bool = False
@@ -93,22 +95,25 @@ def recommend(request: RecommendationRequest):
 
 
 @app.post("/profile", response_model=ProfileResponse)
-def get_profile(request: ProfileRequest):
+async def get_profile(request: ProfileRequest):
     """
     Extrae el perfil de un usuario de Steam dado su nombre, URL o SteamID64.
     Devuelve sus juegos jugados, horas y tags preferidos.
+
+    El endpoint es async: no bloquea el event loop de uvicorn mientras
+    realiza las múltiples llamadas a la API de Steam.
     """
     try:
-        profile: SteamUserProfile = build_user_profile(request.username)
+        profile: User = await _build_user_profile_async(request.username)
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
     return ProfileResponse(
-        user_id        = profile.user_id,
-        name           = profile.name,
-        played_app_ids = profile.played_app_ids,
-        preferred_tags = profile.preferred_tags,
-        amount_playing = profile.amount_playing,
+        user_id          = profile.user_id,
+        name             = profile.name,
+        played_app_ids   = profile.played_app_ids,
+        preferred_tags   = profile.preferred_tags,
+        amount_playing   = profile.amount_playing
     )
 
 

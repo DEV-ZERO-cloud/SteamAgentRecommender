@@ -2,8 +2,8 @@
 strategy.py – Patrón Strategy para las etapas del pipeline de recomendación.
 
 Cada Strategy encapsula una fase:
-  1. FilterStrategy  – filtra candidatos según reglas duras
-  2. RankStrategy    – ordena por score híbrido
+  1. FilterStrategy   – filtra candidatos según reglas duras
+  2. RankStrategy     – ordena por score híbrido
   3. DiversifyStrategy – diversificación por subgénero (evitar repetición)
 """
 from __future__ import annotations

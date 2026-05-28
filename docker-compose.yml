@@ -1,15 +1,24 @@
 services:
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     volumes:
-      - ./src/data:/app/src/data         # CSV persiste fuera del contenedor
-      - ./src/embeddings:/app/src/embeddings  # índice FAISS persiste en disco
+      - ./src/data:/app/src/data                    # CSV persiste fuera del contenedor
+      - ./src/embeddings:/app/src/embeddings        # índice FAISS persiste en disco
     env_file:
       - .env
     environment:
       PYTHONPATH: src/
       CSV_PATH: src/data/steam_rpg_games.csv
       PARAMETERS_PATH: src/knowledge/parameters.json
+      EMBEDDINGS_CACHE_PATH: src/embeddings/embeddings_cache.npy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

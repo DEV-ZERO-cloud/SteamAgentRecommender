@@ -7,6 +7,7 @@ las puntuaciones parciales y los metadatos del juego.
 from __future__ import annotations
 
 from models.game import Game
+from models.user import UserPreferences
 
 
 def generate_explanation(
@@ -46,7 +47,7 @@ def generate_explanation(
         parts.append(f"Precio accesible: ${game.price:.2f}.")
 
     # --- Plataformas ---
-    if prefs.preferred_platforms:
+    if prefs.preferred_platforms and game.platforms:
         plat_lower = {p.lower() for p in game.platforms}
         matched_plat = [p for p in prefs.preferred_platforms if p.lower() in plat_lower]
         if matched_plat:

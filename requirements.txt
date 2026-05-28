@@ -9,11 +9,10 @@ faiss-cpu
 httpx
 python-dotenv
 tqdm
-torch
+# torch se instala por separado en el Dockerfile (CPU-only, layer cacheado)
 transformers
 pytest
-dotenv
 tabulate
-Playwright
+playwright
 requests
 beautifulsoup4
