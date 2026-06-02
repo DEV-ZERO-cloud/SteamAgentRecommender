@@ -192,28 +192,26 @@ def get_explanations(
     played_gids: set[str],
 ) -> list[str]:
     """
-    Retorna las razones estructuradas por las que se recomienda gid.
-
-    Razones posibles:
-        'reason_tag'      — comparte un tag preferido
-        'reason_similar'  — similar a un juego jugado
-        'reason_subgenre' — pertenece al subgénero RPG
+    Retorna explicaciones textuales de por qué se recomienda gid.
     """
-    reasons: set[str] = set()
+    reasons: list[str] = []
     game_tags = tags_by_gid.get(gid, set())
 
-    # reason_tag
-    if game_tags & liked_tags:
-        reasons.add('reason_tag')
+    matched_tags = game_tags & liked_tags
+    if matched_tags:
+        reasons.append(
+            f"Coincide con tus tags: {', '.join(sorted(matched_tags))}"
+        )
 
-    # reason_similar
     for played_gid in played_gids:
         if (played_gid, gid) in similar_pairs:
-            reasons.add('reason_similar')
+            reasons.append("Similar a juegos que ya tienes en tu biblioteca")
             break
 
-    # reason_subgenre
-    if get_subgenres(game_tags):
-        reasons.add('reason_subgenre')
+    subgenres = get_subgenres(game_tags)
+    if subgenres:
+        reasons.append(
+            f"Del subgénero RPG: {', '.join(sorted(subgenres))}"
+        )
 
-    return list(reasons)
+    return reasons

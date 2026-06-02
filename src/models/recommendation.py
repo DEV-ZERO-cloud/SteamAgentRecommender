@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from models.game import Game
+from src.models.game import Game
 
 
 class Recommendation(BaseModel):

@@ -1,4 +1,43 @@
-\venv
+# ── Agentes de IA ──────────────────────────────────────────
+.agents/
+opencode.json
+skills-lock.json
+
+# ── Docs de diseño (no necesarios para compilación) ───────
+docs/
+
+# ── Entorno ─────────────────────────────────────────────────
 .env
-\src\embeddings\
-\tests\
+.env.example
+venv/
+env/
+.venv/
+
+# ── Python ─────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/*.exe
+
+# ── Embeddings (se regeneran al construir) ────────────────
+src/embeddings/*.index
+src/embeddings/*.pkl
+
+# ── Logs ───────────────────────────────────────────────────
+backend.log
+
+# ── IDE ─────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+local.properties
+
+# ── Flutter / Dart ─────────────────────────────────────────
+frontend/build/
+frontend/.dart_tool/
+frontend/.metadata
+frontend/.flutter-plugins-dependencies
+frontend/android/.gradle/
+frontend/ios/Pods/
+frontend/.pub-cache/

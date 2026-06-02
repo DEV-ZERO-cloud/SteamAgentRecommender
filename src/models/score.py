@@ -9,8 +9,8 @@ Combina:
 from __future__ import annotations
 
 import numpy as np
-from models.game import Game
-from models.user import UserPreferences
+from src.models.game import Game
+from src.models.user import UserPreferences
 
 # Pesos del score final (deben sumar 1.0)
 W_SEMANTIC    = 0.45
@@ -19,6 +19,13 @@ W_RATING      = 0.20
 
 
 def compute_preference_score(game: Game, prefs: UserPreferences) -> float:
+    """
+    Score 0-1 basado en:
+      - overlap de tags preferidos
+      - penalización por tags no deseados
+      - filtro de precio
+      - filtro de plataforma
+    """
     score = 0.0
 
     # --- Tag overlap (preferidos) ---
@@ -51,7 +58,7 @@ def compute_preference_score(game: Game, prefs: UserPreferences) -> float:
         return 0.0
 
     # --- Plataforma preferida ---
-    if prefs.preferred_platforms and game.platforms:
+    if prefs.preferred_platforms:
         plat_lower = {p.lower() for p in game.platforms}
         pref_plat  = {p.lower() for p in prefs.preferred_platforms}
         if plat_lower & pref_plat:
@@ -61,6 +68,7 @@ def compute_preference_score(game: Game, prefs: UserPreferences) -> float:
 
 
 def compute_rating_bonus(game: Game) -> float:
+    """Normaliza el rating de 0-10 a 0-1 con boost en la zona alta."""
     r = np.clip(game.rating, 0.0, 10.0) / 10.0
     # Curva suave: penaliza fuerte por debajo de 0.6, premia sobre 0.8
     return float(r ** 1.5)
@@ -71,6 +79,7 @@ def combine_scores(
     preference_score: float,
     rating_bonus: float,
 ) -> float:
+    """Score final ponderado."""
     return float(
         W_SEMANTIC   * np.clip(semantic_score, 0.0, 1.0)
         + W_PREFERENCE * np.clip(preference_score, 0.0, 1.0)
