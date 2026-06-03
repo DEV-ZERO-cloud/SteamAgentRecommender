@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    init: true
     ports:
       - "8000:8000"
     volumes:
