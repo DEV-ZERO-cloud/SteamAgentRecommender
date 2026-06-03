@@ -41,6 +41,8 @@ jobs:
           context: .
           file: Dockerfile.backend
           push: ${{ github.event_name == 'push' }}   # only push on merge, not on PRs
+          provenance: false   # Docker Hub Free no soporta attestation manifests
+          sbom: false
           tags: |
             gitzerohub/steamagent-backend:latest
             gitzerohub/steamagent-backend:${{ github.sha }}
@@ -54,6 +56,8 @@ jobs:
           context: .
           file: Dockerfile.frontend
           push: ${{ github.event_name == 'push' }}
+          provenance: false   # Docker Hub Free no soporta attestation manifests
+          sbom: false
           tags: |
             gitzerohub/steamagent-frontend:latest
             gitzerohub/steamagent-frontend:${{ github.sha }}
