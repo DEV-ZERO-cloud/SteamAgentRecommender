@@ -1,11 +1,15 @@
 services:
+
+  # ── Backend (FastAPI) ────────────────────────────────────────────────────────
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
     ports:
       - "8000:8000"
     volumes:
-      - ./src/data:/app/src/data         # CSV persiste fuera del contenedor
-      - ./src/embeddings:/app/src/embeddings  # índice FAISS persiste en disco
+      - ./src/data:/app/src/data
+      - ./src/embeddings:/app/src/embeddings
     env_file:
       - .env
     environment:
@@ -13,3 +17,24 @@ services:
       CSV_PATH: src/data/steam_rpg_games.csv
       PARAMETERS_PATH: src/knowledge/parameters.json
     restart: unless-stopped
+    networks:
+      - app-net
+
+  # ── Frontend (Flutter Web + Nginx) ───────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      cache_from:
+        - ghcr.io/cirruslabs/flutter:3.27.3
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge

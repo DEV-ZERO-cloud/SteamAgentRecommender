@@ -174,7 +174,7 @@ def test_pipeline_order_by_parameter_score(pipeline):
 
 
 def test_pipeline_enrichment_explanations(pipeline):
-    """Cada resultado debe tener al menos una explicación."""
+    """Cada resultado debe tener al menos una explicación válida."""
     results = pipeline.recommend(
         query  = "rpg, fantasy, open world",
         top_k  = 5,
@@ -183,9 +183,18 @@ def test_pipeline_enrichment_explanations(pipeline):
         assert len(r.explanations) >= 1, (
             f"{r.game_score.name} no tiene explicaciones"
         )
-        valid = {"reason_tag", "reason_similar", "reason_subgenre"}
         for exp in r.explanations:
-            assert exp in valid, f"Explicación desconocida: {exp}"
+            # Must be a non-empty string
+            assert isinstance(exp, str) and len(exp) > 0, (
+                f"Explicación inválida para {r.game_score.name}: {exp}"
+            )
+            # Must be one of the three valid explanation types
+            is_valid = (
+                "Coincide con tus tags:" in exp or
+                "Similar a juegos que ya tienes en tu biblioteca" in exp or
+                "Del subgénero RPG:" in exp
+            )
+            assert is_valid, f"Explicación desconocida: {exp}"
 
 
 def test_pipeline_top_k_respected(pipeline):
