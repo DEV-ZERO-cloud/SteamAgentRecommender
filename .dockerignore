@@ -15,10 +15,6 @@ __pycache__
 venv
 env
 
-# Embeddings y datos pesados (se montan como volumen)
-src/embeddings/
-src/data/*.csv
-
 # Archivos de desarrollo
 .env
 .env.*
